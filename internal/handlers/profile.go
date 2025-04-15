@@ -45,6 +45,7 @@ func UpdateProfileHandler(db *mongo.Database) http.HandlerFunc {
 			return
 		}
 
+		// Email is not updated here on purpose
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 

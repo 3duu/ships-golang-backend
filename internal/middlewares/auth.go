@@ -32,6 +32,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// wrap protected routes with an extra check
+		// After extracting user ID from JWT
+		/*err := db.Collection("users").FindOne(ctx, bson.M{"_id": objID, "emailVerified": true}).Decode(&user)
+		if err != nil {
+			http.Error(w, "Email not verified", http.StatusForbidden)
+			return
+		}*/
+
 		// Inject userID into context
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
