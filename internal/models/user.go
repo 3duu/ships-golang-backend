@@ -34,6 +34,11 @@ type User struct {
 	UpdatedAt     time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
+// Hex returns the string version of the user's ObjectID
+func (u *User) Hex() string {
+	return u.ID.Hex()
+}
+
 type RegisterRequest struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`

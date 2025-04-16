@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"os"
 	"time"
@@ -41,5 +42,38 @@ func InitMongoDB() {
 	MongoClient = client
 	MongoDB = client.Database(dbName)
 
+	index := mongo.IndexModel{
+		Keys: bson.D{{Key: "location", Value: "2dsphere"}},
+	}
+	_, _ = MongoDB.Collection("users").Indexes().CreateOne(ctx, index)
+
 	log.Println("✅ MongoDB connected successfully")
+}
+
+// Uniqueness/index enforcement to likes and matches
+func EnsureIndexes(db *mongo.Database) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	likesIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "fromUser", Value: 1}, {Key: "toUser", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	matchesIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "user1", Value: 1}, {Key: "user2", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err := db.Collection("likes").Indexes().CreateOne(ctx, likesIndex)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Collection("matches").Indexes().CreateOne(ctx, matchesIndex)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

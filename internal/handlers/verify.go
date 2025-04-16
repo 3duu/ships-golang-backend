@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+/*Use a library like gomail for HTML emails
+
+Automatically login user after verification
+
+Expire verification tokens after X hours*/
+
 func VerifyEmailHandler(db *mongo.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
