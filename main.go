@@ -35,13 +35,14 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	// Protected subrouter
 	auth.Use(middlewares.AuthMiddleware)
 
-	r.Handle("/ws", middlewares.AuthMiddleware(handlers.WebSocketHandler(h.WSManager)))
+	auth.Handle("/ws", middlewares.AuthMiddleware(handlers.WebSocketHandler(h.WSManager)))
 	auth.HandleFunc("/profile", handlers.GetProfileHandler(h.DB)).Methods("GET")
 	auth.HandleFunc("/profile", handlers.UpdateProfileHandler(h.DB)).Methods("PUT")
 	auth.Handle("/like/{userId}", middlewares.AuthMiddleware(handlers.LikeUserHandler(h))).Methods("POST")
 	auth.Handle("/nearby-users", middlewares.AuthMiddleware(h.NearbyUsersHandler())).Methods("GET")
 	auth.Handle("/queue", middlewares.AuthMiddleware(h.SwipeQueueHandler())).Methods("GET")
 	auth.Handle("/swipe/{userId}", middlewares.AuthMiddleware(h.SwipeHandler())).Methods("POST")
+	auth.Handle("/api/ping-location", middlewares.AuthMiddleware(h.PingLocationHandler())).Methods("POST")
 
 	return r
 }
