@@ -1,18 +1,6 @@
 package handlers
 
-import (
-	"context"
-	"net/http"
-	"time"
-
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"ships-backend/internal/middlewares"
-	"ships-backend/internal/models"
-)
-
-func LikeUserHandler(h *Handler) http.HandlerFunc {
+/*func LikeUserHandler(h *Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fromUserID := r.Context().Value(middlewares.UserIDKey).(string)
 		toUserID := mux.Vars(r)["userId"]
@@ -88,4 +76,4 @@ func LikeUserHandler(h *Handler) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`{"match": false}`))
 	}
-}
+}*/

@@ -196,16 +196,42 @@ func (h *Handler) DeletePhotoHandler() http.HandlerFunc {
 			return
 		}
 
-		// Delete
+		// Delete the photo
 		_, err = photoCol.DeleteOne(r.Context(), bson.M{"_id": objID})
 		if err != nil {
 			http.Error(w, "Failed to delete photo", http.StatusInternalServerError)
 			return
 		}
 
+		// Fetch remaining photos, sorted by order
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		cursor, err := photoCol.Find(ctx, bson.M{"userId": userObjID}, options.Find().SetSort(bson.M{"order": 1}))
+		if err != nil {
+			http.Error(w, "Failed to reorder photos", http.StatusInternalServerError)
+			return
+		}
+
+		var photos []models.UserPhoto
+		if err := cursor.All(ctx, &photos); err != nil {
+			http.Error(w, "Error loading photos", http.StatusInternalServerError)
+			return
+		}
+
+		// Reassign order starting from 0
+		for i, p := range photos {
+			if p.Order != i {
+				_, _ = photoCol.UpdateOne(ctx,
+					bson.M{"_id": p.ID},
+					bson.M{"$set": bson.M{"order": i}},
+				)
+			}
+		}
+
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Photo deleted",
+			"message": "Photo deleted and reordered",
 		})
 	}
 }

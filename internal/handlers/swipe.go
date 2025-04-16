@@ -78,8 +78,18 @@ func (h *Handler) SwipeHandler() http.HandlerFunc {
 			_, _ = h.DB.Collection("matches").InsertOne(ctx, match)
 
 			// Notify both users via WebSocket (if connected)
-			h.WSManager.SendTo(fromID.Hex(), "🎉 It's a match!")
-			h.WSManager.SendTo(toID.Hex(), "🎉 You got a match!")
+			h.WSManager.SendTo(fromID.Hex(), models.ChatMessagePayload{
+				Type:     "alert",
+				Text:     "🎉 It's a match!",
+				FromUser: match.User1,
+				Time:     time.Now(),
+			})
+			h.WSManager.SendTo(toID.Hex(), models.ChatMessagePayload{
+				Type:     "alert",
+				Text:     "🎉 You got a match!",
+				FromUser: match.User2,
+				Time:     time.Now(),
+			})
 
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]any{
@@ -92,5 +102,70 @@ func (h *Handler) SwipeHandler() http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]any{
 			"match": false,
 		})
+	}
+}
+
+func (h *Handler) GetYouGotLikedHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		userID := r.Context().Value(middlewares.UserIDKey).(string)
+		currentUserID, _ := primitive.ObjectIDFromHex(userID)
+
+		// Step 1: Get all swipes where someone liked me
+		swipeCol := h.DB.Collection("swipes")
+		cursor, err := swipeCol.Find(ctx, bson.M{
+			"toUser": currentUserID,
+			"action": bson.M{"$in": []string{"like", "superlike"}},
+		})
+		if err != nil {
+			http.Error(w, "Failed to fetch likes", http.StatusInternalServerError)
+			return
+		}
+
+		var likes []models.Swipe
+		if err := cursor.All(ctx, &likes); err != nil {
+			http.Error(w, "Failed to decode likes", http.StatusInternalServerError)
+			return
+		}
+
+		// Step 2: Get users I already swiped on
+		var seenUsers []models.Swipe
+		seenCursor, _ := swipeCol.Find(ctx, bson.M{"fromUser": currentUserID})
+		_ = seenCursor.All(ctx, &seenUsers)
+
+		seenMap := make(map[string]bool)
+		for _, s := range seenUsers {
+			seenMap[s.ToUser.Hex()] = true
+		}
+
+		// Step 3: Filter likes where I haven’t swiped back
+		var likersToShow []primitive.ObjectID
+		for _, like := range likes {
+			if !seenMap[like.FromUser.Hex()] {
+				likersToShow = append(likersToShow, like.FromUser)
+			}
+		}
+
+		// Step 4: Load user profiles
+		userCol := h.DB.Collection("users")
+		userCursor, err := userCol.Find(ctx, bson.M{
+			"_id": bson.M{"$in": likersToShow},
+		})
+		if err != nil {
+			http.Error(w, "Failed to load users", http.StatusInternalServerError)
+			return
+		}
+
+		var users []models.User
+		_ = userCursor.All(ctx, &users)
+
+		for i := range users {
+			users[i].Password = ""
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
 	}
 }

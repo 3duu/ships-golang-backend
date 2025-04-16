@@ -6,9 +6,17 @@ import (
 )
 
 type Message struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	MatchID  primitive.ObjectID `bson:"matchId" json:"matchId"`
-	SenderID primitive.ObjectID `bson:"senderId" json:"senderId"`
-	Text     string             `bson:"text" json:"text"`
-	SentAt   time.Time          `bson:"sentAt" json:"sentAt"`
+	ID        primitive.ObjectID `bson:"_id,omitempty"`
+	MatchID   primitive.ObjectID `bson:"matchId"`
+	FromUser  primitive.ObjectID `bson:"fromUser"`
+	Content   string             `bson:"content"`
+	CreatedAt time.Time          `bson:"createdAt"`
+}
+
+type ChatMessagePayload struct {
+	Type     string             `json:"type"`
+	MatchID  primitive.ObjectID `bson:"matchId"`
+	FromUser primitive.ObjectID `bson:"fromUser"`
+	Text     string             `json:"text"`
+	Time     time.Time          `json:"time"`
 }

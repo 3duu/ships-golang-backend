@@ -2,6 +2,7 @@ package ws
 
 import (
 	"github.com/gorilla/websocket"
+	"ships-backend/internal/models"
 	"sync"
 )
 
@@ -33,13 +34,10 @@ func (m *Manager) RemoveClient(userID string) {
 	delete(m.clients, userID)
 }
 
-func (m *Manager) SendTo(userID, message string) {
+func (m *Manager) SendTo(userID string, message models.ChatMessagePayload) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	if client, ok := m.clients[userID]; ok {
-		client.Conn.WriteJSON(map[string]string{
-			"type": "match",
-			"msg":  message,
-		})
+		client.Conn.WriteJSON(message)
 	}
 }

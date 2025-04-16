@@ -35,19 +35,26 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	// Protected subrouter
 	auth.Use(middlewares.AuthMiddleware)
 
-	auth.Handle("/ws", middlewares.AuthMiddleware(handlers.WebSocketHandler(h.WSManager)))
+	wsAuth := r.PathPrefix("/ws").Subrouter()
+	wsAuth.Use(middlewares.AuthMiddleware)
+	wsAuth.Handle("/", middlewares.AuthMiddleware(handlers.WebSocketHandler(h.WSManager)))
+	wsAuth.Handle("/chat", middlewares.AuthMiddleware(h.WebSocketChatHandler())).Methods("GET")
+
 	auth.HandleFunc("/profile", handlers.GetProfileHandler(h.DB)).Methods("GET")
 	auth.HandleFunc("/profile", handlers.UpdateProfileHandler(h.DB)).Methods("PUT")
-	auth.Handle("/like/{userId}", middlewares.AuthMiddleware(handlers.LikeUserHandler(h))).Methods("POST")
+	//auth.Handle("/like/{userId}", middlewares.AuthMiddleware(handlers.LikeUserHandler(h))).Methods("POST")
 	auth.Handle("/nearby-users", middlewares.AuthMiddleware(h.NearbyUsersHandler())).Methods("GET")
 	auth.Handle("/queue", middlewares.AuthMiddleware(h.SwipeQueueHandler())).Methods("GET")
 	auth.Handle("/swipe/{userId}", middlewares.AuthMiddleware(h.SwipeHandler())).Methods("POST")
+	auth.Handle("/api/got-liked", middlewares.AuthMiddleware(h.GetYouGotLikedHandler())).Methods("GET")
 	auth.Handle("/ping-location", middlewares.AuthMiddleware(h.PingLocationHandler())).Methods("POST")
 	auth.Handle("/crossed-paths", middlewares.AuthMiddleware(h.GetCrossedPathsHandler())).Methods("GET")
 	auth.Handle("/upload-photo", middlewares.AuthMiddleware(h.UploadPhotoHandler())).Methods("POST")
 	auth.HandleFunc("/photo/{userId}", h.GetUserPhotoHandler()).Methods("GET")
 	auth.Handle("/photo-order", middlewares.AuthMiddleware(h.UpdatePhotoOrderHandler())).Methods("PUT")
 	auth.Handle("/api/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
+	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.SendMessageHandler())).Methods("POST")
+	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.GetMessagesHandler())).Methods("GET")
 
 	return r
 }
