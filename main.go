@@ -42,7 +42,12 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	auth.Handle("/nearby-users", middlewares.AuthMiddleware(h.NearbyUsersHandler())).Methods("GET")
 	auth.Handle("/queue", middlewares.AuthMiddleware(h.SwipeQueueHandler())).Methods("GET")
 	auth.Handle("/swipe/{userId}", middlewares.AuthMiddleware(h.SwipeHandler())).Methods("POST")
-	auth.Handle("/api/ping-location", middlewares.AuthMiddleware(h.PingLocationHandler())).Methods("POST")
+	auth.Handle("/ping-location", middlewares.AuthMiddleware(h.PingLocationHandler())).Methods("POST")
+	auth.Handle("/crossed-paths", middlewares.AuthMiddleware(h.GetCrossedPathsHandler())).Methods("GET")
+	auth.Handle("/upload-photo", middlewares.AuthMiddleware(h.UploadPhotoHandler())).Methods("POST")
+	auth.HandleFunc("/photo/{userId}", h.GetUserPhotoHandler()).Methods("GET")
+	auth.Handle("/photo-order", middlewares.AuthMiddleware(h.UpdatePhotoOrderHandler())).Methods("PUT")
+	auth.Handle("/api/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
 
 	return r
 }

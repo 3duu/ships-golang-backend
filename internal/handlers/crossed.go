@@ -3,7 +3,9 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -21,15 +23,43 @@ func (h *Handler) GetCrossedPathsHandler() http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Find all crossed paths where user is user1 or user2
+		// 🧠 Parse query params
+		since := r.URL.Query().Get("since")
+		limitStr := r.URL.Query().Get("limit")
+
+		duration := 7 * 24 * time.Hour // default 7 days
+		if since != "" {
+			d, err := time.ParseDuration(since)
+			if err == nil {
+				duration = d
+			}
+		}
+
+		limit := int64(50)
+		if limitStr != "" {
+			if l, err := strconv.Atoi(limitStr); err == nil {
+				limit = int64(l)
+			}
+		}
+
+		// Filter by user and time
 		filter := bson.M{
-			"$or": []bson.M{
-				{"user1": objID},
-				{"user2": objID},
+			"$and": []bson.M{
+				{
+					"$or": []bson.M{
+						{"user1": objID},
+						{"user2": objID},
+					},
+				},
+				{
+					"timestamp": bson.M{"$gte": time.Now().Add(-duration)},
+				},
 			},
 		}
 
-		cursor, err := h.DB.Collection("crossed_paths").Find(ctx, filter)
+		opts := options.Find().SetLimit(limit).SetSort(bson.D{{Key: "timestamp", Value: -1}})
+
+		cursor, err := h.DB.Collection("crossed_paths").Find(ctx, filter, opts)
 		if err != nil {
 			http.Error(w, "Error loading crossed paths", http.StatusInternalServerError)
 			return
@@ -42,7 +72,6 @@ func (h *Handler) GetCrossedPathsHandler() http.HandlerFunc {
 			return
 		}
 
-		// Fetch user details for otherUser
 		userCol := h.DB.Collection("users")
 		for i := range crossed {
 			var otherID primitive.ObjectID
@@ -55,7 +84,7 @@ func (h *Handler) GetCrossedPathsHandler() http.HandlerFunc {
 			var other models.User
 			err := userCol.FindOne(ctx, bson.M{"_id": otherID}).Decode(&other)
 			if err == nil {
-				other.Password = "" // sanitize
+				other.Password = ""
 				crossed[i].OtherUser = &other
 			}
 		}
