@@ -25,10 +25,12 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	r := mux.NewRouter()
 	auth := r.PathPrefix("/api").Subrouter()
 
+	public := r.PathPrefix("/api").Subrouter()
+
 	// Public routes
-	auth.HandleFunc("/login", handlers.LoginHandler(h.DB)).Methods("POST")
-	auth.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
-	auth.HandleFunc("/verify-email", handlers.VerifyEmailHandler(h.DB)).Methods("GET")
+	public.HandleFunc("/login", handlers.LoginHandler(h.DB)).Methods("POST")
+	public.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
+	public.HandleFunc("/verify-email", handlers.VerifyEmailHandler(h.DB)).Methods("GET")
 
 	// Protected subrouter
 	auth.Use(middlewares.AuthMiddleware)
@@ -38,6 +40,8 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	auth.HandleFunc("/profile", handlers.UpdateProfileHandler(h.DB)).Methods("PUT")
 	auth.Handle("/like/{userId}", middlewares.AuthMiddleware(handlers.LikeUserHandler(h))).Methods("POST")
 	auth.Handle("/nearby-users", middlewares.AuthMiddleware(h.NearbyUsersHandler())).Methods("GET")
+	auth.Handle("/queue", middlewares.AuthMiddleware(h.SwipeQueueHandler())).Methods("GET")
+	auth.Handle("/swipe/{userId}", middlewares.AuthMiddleware(h.SwipeHandler())).Methods("POST")
 
 	return r
 }
