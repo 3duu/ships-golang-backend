@@ -7,6 +7,7 @@ import (
 	"ships-backend/internal/ws"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"ships-backend/internal/database"
 	"ships-backend/internal/handlers"
 )
@@ -18,17 +19,25 @@ func main() {
 	handler := handlers.NewHandler(db, wsManager)
 	database.EnsureIndexes(db)
 	log.Println("🚀 Server is running on :8080")
-	http.ListenAndServe(":8080", setupRoutes(handler))
+	setupRoutes(handler)
 }
 
 func setupRoutes(h *handlers.Handler) *mux.Router {
 	r := mux.NewRouter()
+
+	handler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:19006", "http://localhost:8081"}, // ← your frontend's origin
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}).Handler(r)
+
 	auth := r.PathPrefix("/api").Subrouter()
 
 	public := r.PathPrefix("/api").Subrouter()
 
 	// Public routes
-	public.HandleFunc("/login", handlers.LoginHandler(h.DB)).Methods("POST")
+	public.HandleFunc("/auth/login", handlers.LoginHandler(h.DB)).Methods("POST")
 	public.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
 	public.HandleFunc("/verify-email", handlers.VerifyEmailHandler(h.DB)).Methods("GET")
 
@@ -55,6 +64,8 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	auth.Handle("/api/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
 	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.SendMessageHandler())).Methods("POST")
 	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.GetMessagesHandler())).Methods("GET")
+
+	http.ListenAndServe(":8080", handler)
 
 	return r
 }
