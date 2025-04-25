@@ -38,8 +38,9 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 
 	// Public routes
 	public.HandleFunc("/auth/login", handlers.LoginHandler(h.DB)).Methods("POST")
-	public.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
+	//public.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
 	public.HandleFunc("/verify-email", handlers.VerifyEmailHandler(h.DB)).Methods("GET")
+	public.HandleFunc("/auth/register", handlers.RegisterHandler(h.DB)).Methods("POST")
 
 	// Protected subrouter
 	auth.Use(middlewares.AuthMiddleware)
@@ -55,15 +56,15 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	auth.Handle("/nearby-users", middlewares.AuthMiddleware(h.NearbyUsersHandler())).Methods("GET")
 	auth.Handle("/queue", middlewares.AuthMiddleware(h.SwipeQueueHandler())).Methods("GET")
 	auth.Handle("/swipe/{userId}", middlewares.AuthMiddleware(h.SwipeHandler())).Methods("POST")
-	auth.Handle("/api/got-liked", middlewares.AuthMiddleware(h.GetYouGotLikedHandler())).Methods("GET")
+	auth.Handle("/got-liked", middlewares.AuthMiddleware(h.GetYouGotLikedHandler())).Methods("GET")
 	auth.Handle("/ping-location", middlewares.AuthMiddleware(h.PingLocationHandler())).Methods("POST")
 	auth.Handle("/crossed-paths", middlewares.AuthMiddleware(h.GetCrossedPathsHandler())).Methods("GET")
 	auth.Handle("/upload-photo", middlewares.AuthMiddleware(h.UploadPhotoHandler())).Methods("POST")
 	auth.HandleFunc("/photo/{userId}", h.GetUserPhotoHandler()).Methods("GET")
 	auth.Handle("/photo-order", middlewares.AuthMiddleware(h.UpdatePhotoOrderHandler())).Methods("PUT")
-	auth.Handle("/api/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
-	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.SendMessageHandler())).Methods("POST")
-	auth.Handle("/api/messages/{matchId}", middlewares.AuthMiddleware(h.GetMessagesHandler())).Methods("GET")
+	auth.Handle("/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
+	auth.Handle("/messages/{matchId}", middlewares.AuthMiddleware(h.SendMessageHandler())).Methods("POST")
+	auth.Handle("/messages/{matchId}", middlewares.AuthMiddleware(h.GetMessagesHandler())).Methods("GET")
 
 	http.ListenAndServe(":8080", handler)
 
