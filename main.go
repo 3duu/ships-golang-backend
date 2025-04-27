@@ -40,7 +40,9 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	public.HandleFunc("/auth/login", handlers.LoginHandler(h.DB)).Methods("POST")
 	//public.HandleFunc("/register", handlers.RegisterHandler(h.DB)).Methods("POST")
 	public.HandleFunc("/verify-email", handlers.VerifyEmailHandler(h.DB)).Methods("GET")
-	public.HandleFunc("/auth/register", handlers.RegisterHandler(h.DB)).Methods("POST")
+
+	authHandler := handlers.NewAuthHandler(h.DB)
+	public.HandleFunc("/auth/register", authHandler.RegisterHandler).Methods("POST")
 
 	// Protected subrouter
 	auth.Use(middlewares.AuthMiddleware)

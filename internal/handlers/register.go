@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"net/smtp"
-	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -50,78 +50,76 @@ func sendVerificationEmail(toEmail, token string) {
 		from, []string{toEmail}, []byte(msg))
 }
 
-func RegisterHandler(db *mongo.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req models.RegisterRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
+type AuthHandler struct {
+	db *mongo.Database
+}
 
-		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
-		if req.Email == "" || req.Password == "" || req.Name == "" || req.Birth == (time.Time{}) {
-			http.Error(w, "Missing required fields", http.StatusBadRequest)
-			return
-		}
+func NewAuthHandler(db *mongo.Database) *AuthHandler {
+	return &AuthHandler{db: db}
+}
 
-		users := db.Collection("users")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		// Check for existing email
-		var existing models.User
-		err := users.FindOne(ctx, bson.M{"email": req.Email}).Decode(&existing)
-		if err == nil {
-			http.Error(w, "Email already registered", http.StatusConflict)
-			return
-		}
-
-		// Hashed password
-		hashedPwd, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-
-		newUser := models.User{
-			ID:        primitive.NewObjectID(),
-			Name:      req.Name,
-			Email:     req.Email,
-			Password:  string(hashedPwd),
-			Bio:       req.Bio,
-			Gender:    req.Gender,
-			Interests: req.Interests,
-			Location:  req.Location,
-			Birth:     req.Birth,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
-
-		verifyToken := generateRandomToken(32)
-		newUser.VerifyToken = verifyToken
-		newUser.EmailVerified = false
-
-		_, err = users.InsertOne(ctx, newUser)
-		if err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
-			return
-		}
-
-		// Generate token
-		token, err := utils.GenerateJWT(newUser.ID.Hex())
-		if err != nil {
-			http.Error(w, "Token generation failed", http.StatusInternalServerError)
-			return
-		}
-
-		newUser.Password = ""
-
-		err = json.NewEncoder(w).Encode(RegisterResponse{
-			Token: token,
-			User:  newUser,
-		})
-		if err != nil {
-			log.Printf("Failed to encode response: %v", err)
-			return
-		} else {
-			go sendVerificationEmail(newUser.Email, verifyToken)
-			w.WriteHeader(http.StatusCreated)
-		}
+func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Check for existing user
+	var existing models.User
+	err := h.db.Collection("users").FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existing)
+	if err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already registered"})
+		return
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+	user := models.User{
+		ID:        primitive.NewObjectID(),
+		Name:      req.Name,
+		Email:     req.Email,
+		Password:  string(hashedPassword),
+		CreatedAt: time.Now(),
+	}
+
+	verifyToken := generateRandomToken(32)
+	user.VerifyToken = verifyToken
+	user.EmailVerified = false
+
+	_, err = db.Collection("users").InsertOne(context.Background(), user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
+		return
+	}
+
+	//token, _ := utils.GenerateJWT(user.ID.String()) // <- generate token as done in login
+
+	//c.JSON(http.StatusOK, gin.H{"token": token, "userId": user.ID.Hex()})
+
+	// Generate token
+	token, err := utils.GenerateJWT(user.ID.Hex())
+	if err != nil {
+		http.Error(w, "Token generation failed", http.StatusInternalServerError)
+		return
+	}
+
+	user.Password = ""
+
+	err = json.NewEncoder(w).Encode(RegisterResponse{
+		Token: token,
+		User:  user,
+	})
+	if err != nil {
+		log.Printf("Failed to encode response: %v", err)
+		return
+	} else {
+		go sendVerificationEmail(user.Email, verifyToken)
+		w.WriteHeader(http.StatusCreated)
+	}
+
 }
