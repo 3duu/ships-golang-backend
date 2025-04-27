@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"net/smtp"
@@ -58,68 +57,115 @@ func NewAuthHandler(db *mongo.Database) *AuthHandler {
 	return &AuthHandler{db: db}
 }
 
-func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+/*func LoginHandler(db *mongo.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		var user models.User
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		users := db.Collection("users")
+		err := users.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			log.Println(err)
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := utils.GenerateJWT(user.ID.Hex())
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+			return
+		}
+
+		user.Password = "" // Hide password
+
+		response := LoginResponse{
+			Token: token,
+			User:  user,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
+}*/
 
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
+func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name     string `json:"name"`
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
 
-	// Check for existing user
-	var existing models.User
-	err := h.db.Collection("users").FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existing)
-	if err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email already registered"})
-		return
-	}
+		// Decode JSON manually (no c.BindJSON)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
 
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-	user := models.User{
-		ID:        primitive.NewObjectID(),
-		Name:      req.Name,
-		Email:     req.Email,
-		Password:  string(hashedPassword),
-		CreatedAt: time.Now(),
-	}
+		// Check if user already exists
+		var existing models.User
+		err := h.db.Collection("users").FindOne(context.Background(), bson.M{"email": req.Email}).Decode(&existing)
+		if err == nil {
+			http.Error(w, "Email already registered", http.StatusBadRequest)
+			return
+		}
 
-	verifyToken := generateRandomToken(32)
-	user.VerifyToken = verifyToken
-	user.EmailVerified = false
+		// Hash password
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 
-	_, err = db.Collection("users").InsertOne(context.Background(), user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
-		return
-	}
+		// Create user object
+		user := models.User{
+			ID:            primitive.NewObjectID(),
+			Name:          req.Name,
+			Email:         req.Email,
+			Password:      string(hashedPassword),
+			CreatedAt:     time.Now(),
+			EmailVerified: false,
+			VerifyToken:   generateRandomToken(32),
+		}
 
-	//token, _ := utils.GenerateJWT(user.ID.String()) // <- generate token as done in login
+		// Insert into MongoDB
+		_, err = h.db.Collection("users").InsertOne(context.Background(), user)
+		if err != nil {
+			http.Error(w, "Could not create user", http.StatusInternalServerError)
+			return
+		}
 
-	//c.JSON(http.StatusOK, gin.H{"token": token, "userId": user.ID.Hex()})
+		// Generate JWT
+		token, err := utils.GenerateJWT(user.ID.Hex())
+		if err != nil {
+			http.Error(w, "Token generation failed", http.StatusInternalServerError)
+			return
+		}
 
-	// Generate token
-	token, err := utils.GenerateJWT(user.ID.Hex())
-	if err != nil {
-		http.Error(w, "Token generation failed", http.StatusInternalServerError)
-		return
-	}
+		user.Password = "" // Never return password
 
-	user.Password = ""
-
-	err = json.NewEncoder(w).Encode(RegisterResponse{
-		Token: token,
-		User:  user,
-	})
-	if err != nil {
-		log.Printf("Failed to encode response: %v", err)
-		return
-	} else {
-		go sendVerificationEmail(user.Email, verifyToken)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-	}
 
+		err = json.NewEncoder(w).Encode(RegisterResponse{
+			Token: token,
+			User:  user,
+		})
+		if err != nil {
+			log.Printf("Failed to encode response: %v", err)
+		}
+
+		// Optionally send verification email in background
+		go sendVerificationEmail(user.Email, user.VerifyToken)
+	}
 }
