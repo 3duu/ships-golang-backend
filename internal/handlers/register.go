@@ -91,11 +91,16 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 			CreatedAt:     time.Now(),
 			EmailVerified: false,
 			VerifyToken:   generateRandomToken(32),
+			Location: models.Location{
+				Type:        "Point",
+				Coordinates: []float64{0.0, 0.0}, // default empty location
+			},
 		}
 
 		// Insert into MongoDB
 		_, err = h.db.Collection("users").InsertOne(context.Background(), user)
 		if err != nil {
+			log.Println(err)
 			http.Error(w, "Could not create user", http.StatusInternalServerError)
 			return
 		}
