@@ -57,51 +57,6 @@ func NewAuthHandler(db *mongo.Database) *AuthHandler {
 	return &AuthHandler{db: db}
 }
 
-/*func LoginHandler(db *mongo.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req LoginRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		var user models.User
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		users := db.Collection("users")
-		err := users.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			log.Println(err)
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-			return
-		}
-
-		token, err := utils.GenerateJWT(user.ID.Hex())
-		if err != nil {
-			log.Println(err)
-			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-			return
-		}
-
-		user.Password = "" // Hide password
-
-		response := LoginResponse{
-			Token: token,
-			User:  user,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}
-}*/
-
 func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
