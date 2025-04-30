@@ -43,21 +43,34 @@ func LoginHandler(db *mongo.Database) http.HandlerFunc {
 		users := db.Collection("users")
 		err := users.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			utils.RespondWithError(w, http.StatusUnauthorized,
+				"Invalid email or password",
+				err.Error(),
+			)
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			log.Println(err)
-			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			//http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+
+			utils.RespondWithError(w, http.StatusUnauthorized,
+				"Invalid email or password",
+				err.Error(),
+			)
+
 			return
 		}
 
 		token, err := utils.GenerateJWT(user.ID.Hex())
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+			//http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+
+			utils.RespondWithError(w, http.StatusInternalServerError,
+				"Error generating token",
+				err.Error(),
+			)
+
 			return
 		}
 

@@ -67,7 +67,13 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 
 		// Decode JSON manually (no c.BindJSON)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
+			//http.Error(w, "Invalid request", http.StatusBadRequest)
+
+			utils.RespondWithError(w, http.StatusBadRequest,
+				"Error decoding request body",
+				err.Error(),
+			)
+
 			return
 		}
 
@@ -101,14 +107,25 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 		_, err = h.db.Collection("users").InsertOne(context.Background(), user)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "Could not create user", http.StatusInternalServerError)
+			//http.Error(w, "Could not create user", http.StatusInternalServerError)
+
+			utils.RespondWithError(w, http.StatusInternalServerError,
+				"Could not create user.",
+				err.Error(),
+			)
+
 			return
 		}
 
 		// Generate JWT
 		token, err := utils.GenerateJWT(user.ID.Hex())
 		if err != nil {
-			http.Error(w, "Token generation failed", http.StatusInternalServerError)
+			//http.Error(w, "Token generation failed", http.StatusInternalServerError)
+
+			utils.RespondWithError(w, http.StatusInternalServerError,
+				"Could not create user.",
+				"Token generation failed - "+err.Error(),
+			)
 			return
 		}
 
