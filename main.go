@@ -68,6 +68,7 @@ func setupRoutes(h *handlers.Handler) *mux.Router {
 	auth.Handle("/photo/{photoId}", middlewares.AuthMiddleware(h.DeletePhotoHandler())).Methods("DELETE")
 	auth.Handle("/messages/{matchId}", middlewares.AuthMiddleware(h.SendMessageHandler())).Methods("POST")
 	auth.Handle("/messages/{matchId}", middlewares.AuthMiddleware(h.GetMessagesHandler())).Methods("GET")
+	auth.HandleFunc("/auth/login", handlers.LogoutHandler(h.DB)).Methods("POST")
 
 	http.ListenAndServe(":8080", handler)
 

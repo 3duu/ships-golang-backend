@@ -23,8 +23,9 @@ type LoginRequest struct {
 
 // Response payload
 type LoginResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
+	Token        string      `json:"token"`
+	User         models.User `json:"user"`
+	RefreshToken string      `json:"refreshToken"`
 }
 
 // LoginHandler handles POST /api/login
@@ -83,5 +84,29 @@ func LoginHandler(db *mongo.Database) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func LogoutHandler(db *mongo.Database) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Context().Value("userID") // from your auth middleware
+		if userID == nil {
+			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized", "missing user ID in context")
+			return
+		}
+
+		// Optionally read refresh token from header/body if needed
+		// For now, we’ll remove all user refresh tokens
+		_, err := db.Collection("refresh_tokens").DeleteMany(context.TODO(), bson.M{"userId": userID})
+		if err != nil {
+			utils.RespondWithError(w, http.StatusInternalServerError,
+				"Could not logout.",
+				err.Error(),
+			)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent) // 204 No Content
 	}
 }
