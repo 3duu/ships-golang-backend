@@ -75,11 +75,20 @@ func LoginHandler(db *mongo.Database) http.HandlerFunc {
 			return
 		}
 
+		refreshToken := utils.GenerateRandomToken(64)
+		// Store refreshToken in DB (optional but recommended)
+		_, err = db.Collection("refresh_tokens").InsertOne(context.TODO(), bson.M{
+			"userId":    user.ID,
+			"token":     refreshToken,
+			"createdAt": time.Now(),
+		})
+
 		user.Password = "" // Hide password
 
 		response := LoginResponse{
-			Token: token,
-			User:  user,
+			Token:        token,
+			User:         user,
+			RefreshToken: refreshToken,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

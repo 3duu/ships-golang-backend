@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"os"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
@@ -44,4 +46,15 @@ func ValidateJWT(tokenString string) (string, error) {
 	}
 
 	return userID, nil
+}
+
+// GenerateRandomToken creates a secure random token with n bytes (results in 2n hex characters)
+func GenerateRandomToken(length int) string {
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		log.Printf("Error generating random token: %v", err)
+		return ""
+	}
+	return hex.EncodeToString(bytes)
 }
