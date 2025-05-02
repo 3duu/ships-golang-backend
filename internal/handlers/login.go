@@ -23,7 +23,7 @@ type LoginRequest struct {
 
 // Response payload
 type LoginResponse struct {
-	Token        string      `json:"token"`
+	Token        string      `json:"authToken"`
 	User         models.User `json:"user"`
 	RefreshToken string      `json:"refreshToken"`
 }
