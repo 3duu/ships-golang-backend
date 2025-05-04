@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -52,7 +51,6 @@ func LoginHandler(db *mongo.Database) http.HandlerFunc {
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			//http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 
 			utils.RespondWithError(w, http.StatusUnauthorized,
 				"Invalid email or password",
@@ -64,8 +62,6 @@ func LoginHandler(db *mongo.Database) http.HandlerFunc {
 
 		token, err := utils.GenerateJWT(user.ID.Hex())
 		if err != nil {
-			log.Println(err)
-			//http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 
 			utils.RespondWithError(w, http.StatusInternalServerError,
 				"Error generating token",

@@ -37,7 +37,8 @@ func sendVerificationEmail(toEmail, token string) {
 	host := "smtp.yourprovider.com"
 	port := "587"
 
-	link := fmt.Sprintf("http://localhost:8080/api/verify-email?token=%s", token)
+	localIP := utils.GetLocalIP()
+	link := fmt.Sprintf("http://"+localIP+":8080/api/verify-email?token=%s", token)
 	body := "Click to verify your email: " + link
 
 	msg := "From: " + from + "\n" +
@@ -106,8 +107,6 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 		// Insert into MongoDB
 		_, err = h.db.Collection("users").InsertOne(context.Background(), user)
 		if err != nil {
-			log.Println(err)
-			//http.Error(w, "Could not create user", http.StatusInternalServerError)
 
 			utils.RespondWithError(w, http.StatusInternalServerError,
 				"Could not create user.",
@@ -120,7 +119,6 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 		// Generate JWT
 		token, err := utils.GenerateJWT(user.ID.Hex())
 		if err != nil {
-			//http.Error(w, "Token generation failed", http.StatusInternalServerError)
 
 			utils.RespondWithError(w, http.StatusInternalServerError,
 				"Could not create user.",
@@ -142,7 +140,6 @@ func (h *AuthHandler) RegisterHandler() http.HandlerFunc {
 			log.Printf("Failed to encode response: %v", err)
 		}
 
-		// Optionally send verification email in background
 		go sendVerificationEmail(user.Email, user.VerifyToken)
 	}
 }
